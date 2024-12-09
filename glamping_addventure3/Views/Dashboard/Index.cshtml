@@ -1,0 +1,560 @@
+﻿﻿
+@{
+    ViewData["Title"] = "Dashboard";
+
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<header>
+    <link href="~/css/DashboardStyle.css" rel="stylesheet" />
+</header>
+
+
+
+<div class="select d-flex" style="gap: 10px">
+    <label>Seleccionar rango de fechas</label>
+    <select class="form-select form-select-sm" id="selectFecha" style="max-width:250px">
+        <option value="1" selected>Últimos 7 días</option>
+        <option value="2">Último mes</option>
+        <option value="3">Último trimestre</option>
+        <option value="4">Último año</option>
+        <option value="5">Mes actual</option>
+        <option value="6">Semana actual</option>
+    </select>
+</div>
+
+<div class="mt-5 containerDashboard">
+
+
+    <div class="col-sm-6 info-box" id="box-4">
+        <div class="card">
+            <div class="card-header">Reservas Realizadas</div>
+            <div class="card-body">
+                <canvas id="chart1"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 info-box" id="box-5">
+        <div class="card">
+            <div class="card-header">Paquetes</div>
+            <div class="card-body">
+                <canvas id="chart2"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 info-box" id="box-6">
+        <div class="card">
+            <div class="card-header">Servicios</div>
+            <div class="card-body">
+                <canvas id="chart3"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 info-box" id="box-7">
+        <div class="card">
+            <div class="card-header">Tipo Habitaciones</div>
+            <div class="card-body">
+                <canvas id="chart4"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="empty1">
+    </div>
+
+
+
+    <div id="empty2">
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Cargar la librería Chart.js desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    function formatearMoneda(valor) {
+
+        var opcionesFormato = {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }
+
+        return valor.toLocaleString('es-CO', opcionesFormato);
+
+    };
+
+    function convertirMonedaAFloat(monedaFormateada) {
+
+        const monedaTexto = monedaFormateada.toString();
+        var valorFiltrado = monedaTexto.replace('$', '');
+
+        while (valorFiltrado.includes('.')) {
+            valorFiltrado = valorFiltrado.replace('.', '')
+        };
+
+        const valorFloat = parseFloat(valorFiltrado);
+
+        return isNaN(valorFloat) ? 0 : valorFloat;
+    };
+
+    function formatoCosto(input) {
+
+        let value = input.value.replace(/\D/g, '');
+
+        if (value === '') {
+            input.value = '';
+        } else {
+
+            valueNumero = parseFloat(value)
+            numeroFormateado = formatearMoneda(valueNumero)
+
+            input.value = numeroFormateado;
+
+        }
+
+    };
+
+    function formatoNumero(input) {
+
+        let value = input.value;
+
+        if (isNaN(value) || value < 1) {
+            input.value = ""
+        }
+
+    };
+
+    function reemplazarEspacioVacioPorUno(input) {
+        if (input.value.trim() === '') {
+            input.value = '1';
+        }
+    }
+
+    function formatoCostoInput(costo) {
+
+        let costoFormateado = formatearMoneda(costo);
+
+        return costoFormateado;
+    }
+    </script>
+
+    <script>
+        // Función para crear el gráfico de barras
+        function crearGrafico(idCanvas, data) {
+            const canvas = document.getElementById(idCanvas);
+
+            // Verificar si ya existe un gráfico
+            if (canvas.chart) {
+                canvas.chart.destroy();  // Destruir el gráfico anterior
+            }
+
+            const grafico = new Chart(canvas, data);
+            canvas.chart = grafico; // Guardamos la instancia del gráfico
+        }
+
+        // Función para obtener los datos de las reservas y renderizar el gráfico
+        function resumenReservas(formatoFecha) {
+            $.ajax({
+                url: "/Dashboard/resumenReservas",  // Ruta correcta del controlador
+                method: "GET",
+                data: { formatoFecha: formatoFecha },
+                dataType: "json",
+                success: function (dataJson) {
+                    console.log('Datos de Reservas:', dataJson); // Verificar que se reciban los datos
+
+                    // Verificamos si dataJson tiene la estructura esperada
+                    if (!dataJson || dataJson.length === 0) {
+                        console.log('No se recibieron datos');
+                        return;
+                    }
+
+                    const labels = dataJson.map((item) => item.fecha);
+                    const datos = dataJson.map((item) => item.cantidad);
+
+                    // Crear los datos para el gráfico
+                    const data = {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Reservas Realizadas',
+                            data: datos,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.2)',
+                                'rgba(255, 159, 64, 0.2)',
+                                'rgba(255, 205, 86, 0.2)',
+                                'rgba(75, 192, 192, 0.2)',
+                                'rgba(54, 162, 235, 0.2)',
+                                'rgba(153, 102, 255, 0.2)',
+                                'rgba(201, 203, 207, 0.2)'
+                            ],
+                            borderColor: [
+                                'rgb(255, 99, 132)',
+                                'rgb(255, 159, 64)',
+                                'rgb(255, 205, 86)',
+                                'rgb(75, 192, 192)',
+                                'rgb(54, 162, 235)',
+                                'rgb(153, 102, 255)',
+                                'rgb(201, 203, 207)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    };
+
+                    // Configuración del gráfico
+                    const config = {
+                        type: 'bar',
+                        data: data,
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    };
+
+                    // Llamar a la función para crear el gráfico
+                    crearGrafico('chart1', config);
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error en la solicitud:', error);
+                }
+            });
+        }
+
+        // Llamar a la función para cargar los datos de reservas
+        $(document).ready(function () {
+            resumenReservas("yyyy-MM-dd"); // Puedes cambiar el formato según lo necesites
+        });
+
+
+
+    function resumenPaquetes(formatoFecha) {
+        $.ajax({
+            url: "/Dashboard/resumenPaquetes",
+            method: "GET",
+            data: { formatoFecha: formatoFecha },
+            dataType: "json",
+            success: function (dataJson) {
+                const labels = dataJson.map((item) => { return item.nombrePaquete });
+                const datos = dataJson.map((item) => { return item.cantidad });
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad Reservados',
+                        data: datos,
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(75, 192, 192)',
+                            'rgb(255, 205, 86)',
+                            'rgb(201, 203, 207)',
+                            'rgb(54, 162, 235)'
+                        ]
+                    }]
+                };
+
+                const config = {
+                    type: 'polarArea',
+                    data: data,
+                    options: {}
+                };
+
+                const canva = document.getElementById('chart2');
+                const grafico = new Chart(canva, config)
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+            }
+        });
+    }
+
+    function resumenServicios(formatoFecha) {
+        $.ajax({
+            url: "/Dashboard/resumenServicios",
+            method: "GET",
+            data: { formatoFecha: formatoFecha },
+            dataType: "json",
+            success: function (dataJson) {
+                const labels = dataJson.map((item) => { return item.nombreServicio });
+                const datos = dataJson.map((item) => { return item.cantidad });
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad Reservados',
+                        data: datos,
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(75, 192, 192)',
+                            'rgb(255, 205, 86)',
+                            'rgb(201, 203, 207)',
+                            'rgb(54, 162, 235)'
+                        ]
+                    }]
+                };
+
+                const config = {
+                    type: 'polarArea',
+                    data: data,
+                    options: {}
+                };
+
+                const canva = document.getElementById('chart3');
+                const grafico = new Chart(canva, config)
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    }
+
+    function resumenTipoHabi(formatoFecha) {
+        $.ajax({
+            url: "/Dashboard/resumenTipoHabi",
+            method: "GET",
+            data: { formatoFecha: formatoFecha },
+            dataType: "json",
+            success: function (dataJson) {
+                const labels = dataJson.map((item) => { return item.nombreTipoHabitacion });
+                const datos = dataJson.map((item) => { return item.cantidad });
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad Reservados',
+                        data: datos,
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(75, 192, 192)',
+                            'rgb(255, 205, 86)',
+                            'rgb(201, 203, 207)',
+                            'rgb(54, 162, 235)'
+                        ]
+                    }]
+                };
+
+                const config = {
+                    type: 'polarArea',
+                    data: data,
+                    options: {}
+                };
+
+                const canva = document.getElementById('chart4');
+                const grafico = new Chart(canva, config)
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+            }
+        });
+    }
+
+    function resumenEstadosReservas(formatoFecha) {
+        $.ajax({
+            url: "/Dashboard/resumenEstadosReserva",
+            method: "GET",
+            data: { formatoFecha: formatoFecha },
+            dataType: "json",
+            success: function (dataJson) {
+                const labels = dataJson.map((item) => { return item.nombreEstado });
+                const datos = dataJson.map((item) => { return item.cantidad });
+                const data = {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Estados de Reservas',
+                        data: datos,
+                        backgroundColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(75, 192, 192)',
+                            'rgb(255, 205, 86)',
+                            'rgb(201, 203, 207)',
+                            'rgb(54, 162, 235)'
+                        ]
+                    }]
+                };
+
+                const config = {
+                    type: 'pie',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Estados de las Reservas'
+                            }
+                        }
+                    },
+                };
+
+                const canva = document.getElementById('chart5');
+                const grafico = new Chart(canva, config)
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+            }
+        });
+    }
+
+    function infoMiniBox(formatoFecha) {
+        $.ajax({
+            url: "/Dashboard/infoBasicaDash",
+            method: "GET",
+            data: { formatoFecha: formatoFecha },
+            dataType: "json",
+            success: function (dataJson) {
+                const reservasActivas = $('#reservasActivas');
+                const reservasRealizadas = $('#reservasRealizadas');
+                const reservasFinalizadas = $('#reservasFinalizadas');
+                const Ingresos = $('#ingresos');
+
+                reservasActivas.text(dataJson.reservasActivas);
+                reservasRealizadas.text(dataJson.reservasRealizadas);
+                reservasFinalizadas.text(dataJson.reservasFinalizadas);
+                Ingresos.text(formatearMoneda(dataJson.ingresos));
+            },
+            error: function (xhr, status, error) {
+                console.error(error);
+            }
+        });
+    }
+
+
+    var formatoFechaIndex = localStorage.getItem('formatoFechaIndex');
+    if (formatoFechaIndex !== null) {
+        $('#selectFecha').val(formatoFechaIndex);
+    }
+
+    resumenReservas(formatoFechaIndex);
+    resumenPaquetes(formatoFechaIndex);
+    resumenServicios(formatoFechaIndex);
+    resumenTipoHabi(formatoFechaIndex);
+    resumenEstadosReservas(formatoFechaIndex);
+    infoMiniBox(formatoFechaIndex);
+
+
+    $('#selectFecha').change(function () {
+
+        var formatoFechaIndex = $('#selectFecha').val();
+
+        localStorage.setItem('formatoFechaIndex', formatoFechaIndex);
+
+        window.location.reload();
+    });
+</script>
+}
+
+<style>
+    .containerDashboard {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        grid-gap: 10px;
+        grid-template-areas:
+            "box-1 box-2 box-3 box-9"
+            "box-4 box-4 box-5 box-5"
+            "box-7 box-6 box-5 box-5"
+            "none1 box-8 box-8 none2"
+            "none1 box-8 box-8 none2"
+    }
+
+    .info-box {
+        border-radius: 20px;
+        padding: 13px;
+        background-color: white;
+    }
+
+    .mini-box {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .box-title {
+        font-size: large;
+        display: flex;
+        justify-content: start
+    }
+
+    .box-body {
+        display: flex;
+        font-size: xx-large;
+        margin-top: auto;
+        margin-bottom: 15px;
+        justify-content: center;
+    }
+
+    #box-1 {
+        grid-area: box-1;
+        min-width: 100%;
+        min-height: 200px;
+        padding: 30px;
+        background-color: #6ed2b5;
+        color: black;
+    }
+
+    #box-2 {
+        grid-area: box-2;
+        min-width: 100%;
+        min-height: 200px;
+        padding: 30px;
+        background-color: #ffc5d7;
+        color: black;
+    }
+
+    #box-3 {
+        grid-area: box-3;
+        min-width: 100%;
+        min-height: 200px;
+        padding: 30px;
+        background-color: #ffe3a4;
+        color: black;
+    }
+
+    #box-4 {
+        grid-area: box-4;
+        min-width: 100%;
+    }
+
+    #box-5 {
+        grid-area: box-5;
+        min-width: 100%;
+    }
+
+    #box-6 {
+        grid-area: box-6;
+        min-width: 100%;
+    }
+
+    #box-7 {
+        grid-area: box-7;
+        min-width: 100%;
+    }
+
+    #box-8 {
+        grid-area: box-8;
+        min-width: 100%;
+        min-width: 100%;
+    }
+
+    #box-9 {
+        grid-area: box-9;
+        min-width: 100%;
+        min-height: 200px;
+        padding: 30px;
+        background-color: #d5b4ff;
+        color: black;
+    }
+
+    #empty1 {
+        grid-area: none1;
+    }
+
+    #empty2 {
+        grid-area: none2;
+    }
+
+    </style >
